@@ -1,4 +1,4 @@
-name: Flutter Build & Release APK
+name: Flutter Build & Release APK (arm64-v8a)
 
 on:
   push:
@@ -39,8 +39,8 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build APK (arm64-v8a only)
+        run: flutter build apk --release --target-platform android-arm64
 
       - name: Get version from pubspec
         id: version
@@ -60,7 +60,8 @@ jobs:
           body: |
             New release of SnapScore app - v${{ env.VERSION }} 🚀
 
-            ### Release APK
+            ### Release APK (arm64-v8a)
+            - Optimized for modern Android devices
             - Download the APK file above to install on Android devices
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
