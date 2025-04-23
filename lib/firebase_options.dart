@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -28,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -49,9 +40,19 @@ class DefaultFirebaseOptions {
     }
   }
 
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyAhUfvKQ3kSxuE7A6hkqmDVaQeTT1ymDnE',
+    appId: '1:757456957598:web:9321a760671956859ccb8f',
+    messagingSenderId: '757456957598',
+    projectId: 'snapscore-cb7b4',
+    authDomain: 'snapscore-cb7b4.firebaseapp.com',
+    storageBucket: 'snapscore-cb7b4.firebasestorage.app',
+    measurementId: 'G-78KDHT778D',
+  );
+
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyA0Y8NObS_eQoZlro4TOH55MGoXFelSpL0',
-    appId: '1:757456957598:android:5fc5dea58d5fca889ccb8f',
+    appId: '1:757456957598:android:04c0b860c2ed20fd9ccb8f',
     messagingSenderId: '757456957598',
     projectId: 'snapscore-cb7b4',
     storageBucket: 'snapscore-cb7b4.firebasestorage.app',
@@ -59,10 +60,33 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBgLJf7HH8QzFlWslGuop0CkUUnG_4Xldk',
-    appId: '1:757456957598:ios:ae587915afa16e849ccb8f',
+    appId: '1:757456957598:ios:44fed35374d0d8949ccb8f',
     messagingSenderId: '757456957598',
     projectId: 'snapscore-cb7b4',
     storageBucket: 'snapscore-cb7b4.firebasestorage.app',
-    iosBundleId: 'com.example.snapscoreAndroid',
+    androidClientId: '757456957598-i1ovpddcsb8u5q7ops6b163vtf6afefd.apps.googleusercontent.com',
+    iosClientId: '757456957598-c4civ60ne88i7d53dlph80ph7q6afkve.apps.googleusercontent.com',
+    iosBundleId: 'com.example.snapscoreRemastered',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyBgLJf7HH8QzFlWslGuop0CkUUnG_4Xldk',
+    appId: '1:757456957598:ios:44fed35374d0d8949ccb8f',
+    messagingSenderId: '757456957598',
+    projectId: 'snapscore-cb7b4',
+    storageBucket: 'snapscore-cb7b4.firebasestorage.app',
+    androidClientId: '757456957598-i1ovpddcsb8u5q7ops6b163vtf6afefd.apps.googleusercontent.com',
+    iosClientId: '757456957598-c4civ60ne88i7d53dlph80ph7q6afkve.apps.googleusercontent.com',
+    iosBundleId: 'com.example.snapscoreRemastered',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyAhUfvKQ3kSxuE7A6hkqmDVaQeTT1ymDnE',
+    appId: '1:757456957598:web:e614931862c4f9db9ccb8f',
+    messagingSenderId: '757456957598',
+    projectId: 'snapscore-cb7b4',
+    authDomain: 'snapscore-cb7b4.firebaseapp.com',
+    storageBucket: 'snapscore-cb7b4.firebasestorage.app',
+    measurementId: 'G-73H5RSRNDQ',
   );
 }
