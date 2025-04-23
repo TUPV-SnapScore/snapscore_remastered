@@ -64,13 +64,13 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          name: Release v${{ steps.version.outputs.version }}
+          name: SnapScore v${{ steps.version.outputs.version }}
           draft: false
           prerelease: false
-          files: build/app/outputs/flutter-apk/*
+          files: build/app/outputs/flutter-apk/*.apk
           body: |
             New release of SnapScore app - v${{ steps.version.outputs.version }} 🚀
 
