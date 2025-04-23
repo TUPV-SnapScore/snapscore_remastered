@@ -12,6 +12,7 @@ import 'core/router/auth_wrapper.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
+  WidgetsApp.debugAllowBannerOverride = false;
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
