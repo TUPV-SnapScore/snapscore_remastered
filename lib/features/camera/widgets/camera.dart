@@ -2,9 +2,8 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
-import 'package:path/path.dart';
+import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:snapscore/core/themes/colors.dart';
@@ -14,133 +13,94 @@ class Camera extends StatefulWidget {
   final String assessmentName;
   final String assessmentId;
 
-  const Camera(
-      {super.key, required this.assessmentName, required this.assessmentId});
+  const Camera({
+    super.key,
+    required this.assessmentName,
+    required this.assessmentId,
+  });
 
   @override
   CameraState createState() => CameraState();
 }
 
 class CameraState extends State<Camera> {
-  CameraController? _controller;
-  final List<File> _capturedImages = [];
+  List<File> _capturedImages = [];
   File? _previewImage; // Currently displayed image in review mode
   bool _isProcessing = false;
   bool _isReviewing = false;
   bool _isUploading = false;
-  FlashMode _currentFlashMode = FlashMode.off;
   final cameraService = CameraService();
+  final DocumentScanner _documentScanner = DocumentScanner(
+    options: DocumentScannerOptions(
+      documentFormat: DocumentFormat.jpeg,
+      mode: ScannerMode.filter,
+      pageLimit: 1,
+      isGalleryImport: true,
+    ),
+  );
 
   DeviceOrientation _currentOrientation = DeviceOrientation.portraitUp;
-  final Map<File, DeviceOrientation> _photoOrientations = {};
-
-  double? _cameraAspectRatio;
+  Map<File, DeviceOrientation> _photoOrientations = {};
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    _checkPermissions();
   }
 
-  Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    if (cameras.isEmpty) return;
-
-    _controller = CameraController(cameras[0], ResolutionPreset.high,
-        enableAudio: false, imageFormatGroup: ImageFormatGroup.jpeg);
-
-    try {
-      await _controller!.initialize();
-      await _controller!.setFlashMode(FlashMode.off);
-
-      // Set aspect ratio after initialization
-      setState(() {
-        _cameraAspectRatio = _controller!.value.aspectRatio;
-      });
-    } catch (e) {
+  Future<void> _checkPermissions() async {
+    final cameraStatus = await Permission.camera.request();
+    if (!cameraStatus.isGranted) {
       if (mounted) {
-        ScaffoldMessenger.of(context as BuildContext).showSnackBar(
-          SnackBar(content: Text('Error initializing camera: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _updateCameraOrientation(DeviceOrientation orientation) async {
-    if (_controller == null) return;
-
-    setState(() {
-      _currentOrientation = orientation;
-    });
-
-    try {
-      await _controller!.lockCaptureOrientation(orientation);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context as BuildContext).showSnackBar(
-          SnackBar(content: Text('Error changing orientation: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _captureImage() async {
-    if (!(_controller?.value.isInitialized ?? false)) return;
-
-    final status = await Permission.camera.request();
-    if (!status.isGranted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Camera permission is required')),
         );
       }
-      return;
     }
+  }
 
+  Future<void> _scanDocument() async {
     try {
       setState(() => _isProcessing = true);
 
-      // Set focus and exposure for best quality
-      await _controller!.setExposureMode(ExposureMode.auto);
-      await _controller!.setFocusMode(FocusMode.auto);
+      DocumentScanningResult result = await _documentScanner.scanDocument();
 
-      final Directory appDir = await getApplicationDocumentsDirectory();
-      final String dirPath = '${appDir.path}/Pictures';
-      await Directory(dirPath).create(recursive: true);
+      if (result.images == null || result.images.isEmpty) {
+        // User canceled the scanning
+        setState(() => _isProcessing = false);
+        return;
+      }
 
-      // Use PNG extension for lossless quality
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}.png';
-      final String tempImagePath = '$dirPath${Platform.pathSeparator}$fileName';
+      // Process each scanned document
+      for (final output in result.images) {
+        final String imagePath = output;
+        final File scannedImage = File(imagePath);
 
-      // Take picture with maximum quality
-      final XFile image = await _controller!.takePicture();
+        // Save to app directory for persistence
+        final Directory appDir = await getApplicationDocumentsDirectory();
+        final String dirPath = '${appDir.path}/Pictures';
+        await Directory(dirPath).create(recursive: true);
 
-      // Copy to new location as PNG
-      final File originalFile = File(image.path);
-      await originalFile.copy(tempImagePath);
+        final String fileName = '${DateTime.now().millisecondsSinceEpoch}.png';
+        final String savedImagePath =
+            '$dirPath${Platform.pathSeparator}$fileName';
+        final File savedImage = await scannedImage.copy(savedImagePath);
 
-      final File capturedImage = File(tempImagePath);
-
-      setState(() {
-        _capturedImages.add(capturedImage);
-        _photoOrientations[capturedImage] = _currentOrientation;
-        _previewImage = capturedImage;
-        _isProcessing = false;
-        _isReviewing = true;
-      });
+        setState(() {
+          _capturedImages.add(savedImage);
+          _photoOrientations[savedImage] = _currentOrientation;
+          _previewImage = savedImage;
+          _isReviewing = true;
+        });
+      }
     } catch (e) {
-      setState(() => _isProcessing = false);
       if (mounted) {
-        ScaffoldMessenger.of(context as BuildContext).showSnackBar(
-          SnackBar(content: Text('Error capturing image: $e')),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error scanning document: $e')),
         );
       }
+    } finally {
+      setState(() => _isProcessing = false);
     }
   }
 
@@ -155,59 +115,6 @@ class CameraState extends State<Camera> {
       case DeviceOrientation.portraitUp:
       default:
         return 0.0;
-    }
-  }
-
-  void _rotateToNext() async {
-    final orientations = [
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-    ];
-
-    final currentIndex = orientations.indexOf(_currentOrientation);
-    final nextOrientation =
-        orientations[(currentIndex + 1) % orientations.length];
-
-    await _updateCameraOrientation(nextOrientation);
-  }
-
-  void _toggleFlash() async {
-    if (_controller == null) return;
-
-    try {
-      FlashMode nextMode;
-      switch (_currentFlashMode) {
-        case FlashMode.off:
-          nextMode = FlashMode.auto;
-          break;
-        case FlashMode.auto:
-          nextMode = FlashMode.always;
-          break;
-        default:
-          nextMode = FlashMode.off;
-      }
-
-      await _controller!.setFlashMode(nextMode);
-      setState(() => _currentFlashMode = nextMode);
-    } catch (e) {
-      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
-        SnackBar(content: Text('Error changing flash mode: $e')),
-      );
-    }
-  }
-
-  IconData _getFlashIcon() {
-    switch (_currentFlashMode) {
-      case FlashMode.off:
-        return Icons.flash_off;
-      case FlashMode.auto:
-        return Icons.flash_auto;
-      case FlashMode.always:
-        return Icons.flash_on;
-      default:
-        return Icons.flash_off;
     }
   }
 
@@ -236,13 +143,6 @@ class CameraState extends State<Camera> {
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-    _controller?.dispose();
     super.dispose();
   }
 
@@ -267,9 +167,6 @@ class CameraState extends State<Camera> {
       }
     } catch (e) {
       print('Error uploading images: $e');
-      // if (mounted) {
-      //   Navigator.pop(context as BuildContext, 'Images uploaded successfully');
-      // }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error uploading images: $e')),
@@ -282,47 +179,49 @@ class CameraState extends State<Camera> {
     }
   }
 
-  Widget _buildCornerMarker() {
-    return SizedBox(
-      width: 24,
-      height: 24,
-      child: Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.green.withOpacity(0.8), width: 3),
-          color: Colors.transparent,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCameraPreview() {
-    if (_controller?.value.isInitialized != true) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Use full width of the screen
-        final width = constraints.maxWidth * 0.8;
-        // Calculate height for 16:9 aspect ratio
-        final height = width * 16 / 9;
-
-        return Center(
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Camera preview
-              SizedBox(
-                width: width,
-                height: height,
-                child: CameraPreview(_controller!),
-              ),
-            ],
+  Widget _buildWelcomeScreen() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.document_scanner_outlined,
+            size: 64,
+            color: Colors.black54,
           ),
-        );
-      },
+          SizedBox(height: 16),
+          Text(
+            'Document Scanner',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Tap the scan button to start scanning documents',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.black54,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: _scanDocument,
+            icon: Icon(Icons.document_scanner),
+            label: Text('Scan Document'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -332,7 +231,7 @@ class CameraState extends State<Camera> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = MediaQuery.of(context).size.width;
-        final imageWidth = screenWidth * 1.5;
+        final imageWidth = screenWidth * 0.85;
         final imageHeight = imageWidth * 1.4;
 
         return Stack(
@@ -390,7 +289,7 @@ class CameraState extends State<Camera> {
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.camera_alt,
+                    Icons.document_scanner,
                     color: Colors.white,
                     size: 24,
                   ),
@@ -436,7 +335,7 @@ class CameraState extends State<Camera> {
   }
 
   Widget _buildThumbnailList() {
-    return SizedBox(
+    return Container(
       height: 80,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -469,16 +368,6 @@ class CameraState extends State<Camera> {
           ),
         ),
         actions: [
-          if (!_isReviewing || _previewImage == null) ...[
-            IconButton(
-              icon: Icon(_getFlashIcon(), color: Colors.black),
-              onPressed: _toggleFlash,
-            ),
-            IconButton(
-              icon: const Icon(Icons.screen_rotation, color: Colors.black),
-              onPressed: _rotateToNext,
-            ),
-          ],
           IconButton(
             icon: const Icon(Icons.more_horiz, color: Colors.black),
             onPressed: () {},
@@ -490,7 +379,7 @@ class CameraState extends State<Camera> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 4.0),
             child: Text(
-              'Scan',
+              'Scan Documents',
               style: TextStyle(
                 color: Colors.black54,
                 fontSize: 16,
@@ -506,76 +395,97 @@ class CameraState extends State<Camera> {
                     children: [
                       if (_isReviewing && _previewImage != null)
                         _buildImagePreview()
-                      else if (_controller?.value.isInitialized ?? false)
-                        _buildCameraPreview(),
-                      if (!_isReviewing || _previewImage == null) ...[
-                        Positioned(
-                          bottom: 80,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: GestureDetector(
-                              onTap: _captureImage,
-                              child: Container(
-                                width: 55,
-                                height: 55,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 3,
-                                  ),
-                                ),
-                                child: Container(
-                                  margin: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      else
+                        _buildWelcomeScreen(),
                     ],
                   ),
           ),
           // Thumbnail list if we have images
           if (_capturedImages.isNotEmpty) _buildThumbnailList(),
-          if (_capturedImages.isNotEmpty)
+          if (_capturedImages.isNotEmpty && !_isProcessing)
             Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: TextButton(
-                onPressed: _isUploading ? null : () => {_uploadPhotos(context)},
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: const BorderSide(color: Colors.black),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  minimumSize: const Size(double.infinity, 48),
-                ),
-                child: _isUploading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.black54),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: _scanDocument,
+                      style: TextButton.styleFrom(
+                        backgroundColor: AppColors.background,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: const BorderSide(color: Colors.black),
                         ),
-                      )
-                    : const Text(
-                        'Upload All Images',
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text(
+                        'Scan More',
                         style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: TextButton(
+                      onPressed:
+                          _isUploading ? null : () => _uploadPhotos(context),
+                      style: TextButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: _isUploading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Text(
+                              'Upload All',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (_capturedImages.isEmpty && !_isReviewing && !_isProcessing)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+              child: TextButton(
+                onPressed: _scanDocument,
+                style: TextButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+                child: const Text(
+                  'Scan Document',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ),
         ],
