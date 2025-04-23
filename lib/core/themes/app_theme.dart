@@ -13,7 +13,6 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         error: AppColors.error,
-        background: AppColors.background,
         surface: AppColors.surfaceBackground,
       ),
 
@@ -45,8 +44,8 @@ class AppTheme {
 
       // Rest of your theme configuration remains the same
       inputDecorationTheme: InputDecorationTheme(
-        // ... existing input decoration theme
-      ),
+          // ... existing input decoration theme
+          ),
     );
   }
 }
