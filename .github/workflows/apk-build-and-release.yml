@@ -1,0 +1,81 @@
+name: Flutter Build & Release APK (arm64-v8a)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.29.3"
+          channel: "stable"
+          cache: true
+
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ runner.tool_cache }}/flutter
+            ~/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Create .env file
+        run: |
+          if [ -n "${{ secrets.API_URL }}" ]; then
+            echo "API_URL=${{ secrets.API_URL }}" > .env
+            echo ".env file created successfully"
+          else
+            echo "Warning: API_URL secret is not set. Creating a default .env file."
+            echo "API_URL=default_placeholder_value" > .env
+            # Uncomment if you want the build to fail when secret is missing
+            # exit 1
+          fi
+
+      - name: Build APK
+        run: flutter build apk --release --split-per-abi
+
+      - name: Get version from pubspec
+        id: version
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | sed 's/+.*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: build/app/outputs/flutter-apk/*
+          body: |
+            New release of SnapScore app - v${{ steps.version.outputs.version }} 🚀
+
+            ### Release APK (arm64-v8a)
+            - Optimized for modern Android devices
+            - Download the APK file above to install on Android devices
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

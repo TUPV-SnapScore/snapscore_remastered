@@ -1,0 +1,22 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "snapscore-cb7b4",
+          "appId": "1:757456957598:android:5fc5dea58d5fca889ccb8f",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "snapscore-cb7b4",
+          "configurations": {
+            "android": "1:757456957598:android:5fc5dea58d5fca889ccb8f",
+            "ios": "1:757456957598:ios:ae587915afa16e849ccb8f"
+          }
+        }
+      }
+    }
+  }
+}
