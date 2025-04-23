@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "757456957598",
+    "project_id": "snapscore-cb7b4",
+    "storage_bucket": "snapscore-cb7b4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:757456957598:android:5fc5dea58d5fca889ccb8f",
+        "android_client_info": {
+          "package_name": "com.snapscore_tupv.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "757456957598-ojlhco0kv7as26dn1sde457nah141ksb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.snapscore_tupv.app",
+            "certificate_hash": "e95a7f25761e969ad99b2059a94ae59852280986"
+          }
+        },
+        {
+          "client_id": "757456957598-lb8u66gir182egqlp74i9vj858gapo15.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0Y8NObS_eQoZlro4TOH55MGoXFelSpL0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "757456957598-lb8u66gir182egqlp74i9vj858gapo15.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "757456957598-7cgu3t72ochorkajlmjbfmf7mgjakqlq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.snapscoreAndroid"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
