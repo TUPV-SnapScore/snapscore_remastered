@@ -63,6 +63,7 @@ flutter:
         - asset: assets/fonts/Poppins-Italic.ttf
           style: italic
   assets:
+    - .env
     - assets/icons/
     - assets/images/
 
